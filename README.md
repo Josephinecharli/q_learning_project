@@ -10,7 +10,7 @@ We will create an algorithm based off the one we used in class and code it. We w
 ### Determining when the Q-matrix has converged
 We will set a threshold for the largest change a component makes over one cycle and if all changes are less than this threshold we will consider our matrix to have converged. We will test this by starting with a larger threshold and decreasing it until we reach a reasonable consistency (no more than a few percentage points difference). 
 ### Once the Q-matrix has converged, how to determine which actions the robot should take to maximize expected reward
-Once our matrix has converged, we will move our robot in the direction with the highest reward for each step. Because our Q-matrix has converged, we assume this will lead our robot to the maximum reward in the fewest possible steps.
+Once our matrix has converged, we will move our robot in the direction with the highest reward for each step. Because our Q-matrix has converged, we assume this will lead our robot to the maximum reward in the fewest possible steps. We can test this portion by providing a small already-converged test matrix and ensuring that our robot moves in the desired directions.
 ## Robot perception
 ### Determining the identities and locations of the three colored dumbbells
 First we will use the /scan topic to locate the dumbells and /camera/rgb/image_raw to identify the colors of the the dumbells. We will base our approach on the code from the class activity, line follower. We will test by visually inspecting our world and ensuring the robots identificsation of the dumbells colors and respective locations are correct.
