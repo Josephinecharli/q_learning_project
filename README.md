@@ -2,6 +2,7 @@
 
 # Team Members:
 Josephine Passananti
+
 Evan Casey
 
 ## Q-learning algorithm

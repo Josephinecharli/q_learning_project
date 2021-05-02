@@ -1,1 +1,5 @@
 <!-- TODO -->
+<!-- 
+Run any scripts you've written to load the saved QMatrix, and dispatch actions as needed to put the right dumbbells to each block
+Run any scripts you've written to receive dispatched actions and carry them out e.g. block perception, dumbbell pickup etc. 
+-->
