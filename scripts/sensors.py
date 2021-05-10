@@ -36,6 +36,11 @@ class Move_Robot(object):
         # Initialize this node
         rospy.init_node("Move_Robot")
 
+        file = open("qmatrix.csv")
+        self.qmatrix = np.loadtxt(file, delimiter=',')
+
+        print(self.qmatrix)
+
         print("set color")
         self.color = 'red' # set color we are currently looking for
 
@@ -68,9 +73,7 @@ class Move_Robot(object):
 
         # subscribe to scan and camera
         rospy.Subscriber("scan", LaserScan, self.recieved_scan)
-        rospy.Subscriber("camera/rgb/image_raw", Image, self.recieved_image)
-        #rospy.Subscriber("q_learning/robot_action",  RobotMoveDBToBlock, self.recieved_image)
-    
+        rospy.Subscriber("camera/rgb/image_raw", Image, self.recieved_image)    
 
         # set up robot stuff
         # the interface to the group of joints making up the turtlebot3
@@ -83,7 +86,7 @@ class Move_Robot(object):
         
         rospy.sleep(1)
         # Reset arm position
-        #self.move_group_arm.go([0,0,0,0], wait=True)
+        self.move_group_arm.go([0,0,0,0], wait=True)
         print("ready")
 
         # set our global variables
@@ -95,10 +98,10 @@ class Move_Robot(object):
         #callback for getting LIDAR
         return
 
-    def recieved_image(self, msg):
+    def recieved_image(self, data):
         #callback for getting image
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
-        image = self.bridge.imgmsg_to_cv2(msg,desired_encoding='bgr8')
+        image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
         # COLOR
@@ -148,13 +151,13 @@ class Move_Robot(object):
             print(self.prediction_groups[0][0][0])
             num = str(self.prediction_groups[0][0][0])
             if num == '1':
-                self.move_group_arm.go([1,0,0,0], wait=True) # these lines are causing errors bc error with move_group_arm
+                self.move_group_arm.go([0,0,0,0], wait=True) # these lines are causing errors bc error with move_group_arm
                 print("1")
             elif num == '2':
-                self.move_group_arm.go([0,1,0,0], wait=True)
+                self.move_group_arm.go([0,0,0,0], wait=True)
                 print("2")
             elif num == '3':
-                self.move_group_arm.go([0,0,1,0], wait=True)
+                self.move_group_arm.go([0,0,0,0], wait=True)
                 print("3")
         except:
             print("no number found")

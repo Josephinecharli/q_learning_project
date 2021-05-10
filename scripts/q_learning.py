@@ -157,8 +157,7 @@ class QLearning(object):
     def save_q_matrix(self):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
-        df = pd.DataFrame(self.qmatrix)
-        df.to_csv('qmatrix.csv')
+        np.savetxt("qmatrix.csv", self.qmatrix, delimiter=",")
 
 if __name__ == "__main__":
     node = QLearning()
