@@ -3,3 +3,14 @@
 Run any scripts you've written to load the saved QMatrix, and dispatch actions as needed to put the right dumbbells to each block
 Run any scripts you've written to receive dispatched actions and carry them out e.g. block perception, dumbbell pickup etc. 
 -->
+
+<launch>
+    <!-- startup simulated world -->
+    <include file="$(find q_learning_project)/launch/turtlebot3_intro_robo_manipulation.launch" />
+
+    <!-- need to move robot -->
+    <include file="$(find turtlebot3_manipulation_moveit_config)/launch/move_group.launch" />
+
+    <!-- run nodes -->
+    <node name="Move_Robot" pkg="q_learning_project" type="sensors.py" respawn="false" />
+</launch>
