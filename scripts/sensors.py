@@ -5,6 +5,8 @@
 # open the debugger: roslaunch turtlebot3_gazebo turtlebot3_gazebo_rviz.launch
 # open the arm-mover: roslaunch turtlebot3_manipulation_moveit_config move_group.launch 
 # run our code: rosrun q_learning_project sensors.py 
+# roslaunch turtlebot3_manipulation_gui turtlebot3_manipulation_gui.launch
+
 
 # TODO
 # figure out this error: [ INFO] [1620640383.531923153, 1527.144000000]: ABORTED: No motion plan found. No execution attempted.
@@ -36,13 +38,38 @@ class Move_Robot(object):
         # Initialize this node
         rospy.init_node("Move_Robot")
 
+
+        # Import qmatrix, action matrix and actions
         file = open("qmatrix.csv")
         self.qmatrix = np.loadtxt(file, delimiter=',')
 
-        print(self.qmatrix)
+        # Fetch pre-built action matrix. This is a 2d numpy array where row indexes
+        # correspond to the starting state and column indexes are the next states.
+        #
+        # A value of -1 indicates that it is not possible to get to the next state
+        # from the starting state. Values 0-9 correspond to what action is needed
+        # to go to the next state.
+        #
+        # e.g. self.action_matrix[0][12] = 5
+        self.action_matrix = np.loadtxt(path_prefix + "action_matrix.txt")
 
-        print("set color")
+        # Fetch actions. These are the only 9 possible actions the system can take.
+        # self.actions is an array of dictionaries where the row index corresponds
+        # to the action number, and the value has the following form:
+        # { dumbbell: "red", block: 1}
+        colors = ["red", "green", "blue"]
+        self.actions = np.loadtxt(path_prefix + "actions.txt")
+        self.actions = list(map(
+            lambda x: {"dumbbell": colors[int(x[0])], "block": int(x[1])},
+            self.actions
+        ))
+
+
+        # initialize global variables
         self.color = 'red' # set color we are currently looking for
+        self.block = 1 # set block we want to move to
+        self.stop_receiving = True # set variable to control image callback function
+        self.action_list = [] # create a list of the actions we want to do
 
 
         # set up camera stuff
@@ -50,24 +77,19 @@ class Move_Robot(object):
         self.bridge = cv_bridge.CvBridge()
         rospy.sleep(2) # wait for setup to complete to avoid errors
 
+
         # set up keras stuff
         # download pre-trained model
         self.pipeline = keras_ocr.pipeline.Pipeline()
         rospy.sleep(1) # idk if we need this
 
         # Once you have the pipeline, you can use it to recognize characters,
-
         # call the recognizer on the list of images
         self.prediction_groups = []
-
-        # prediction_groups is a list of predictions for each image
-        # prediction_groups[0] is a list of tuples for recognized characters for img1
-        # the tuples are of the formate (word, box), where word is the word
-        # recognized by the recognizer and box is a rectangle in the image where the recognized words reside
-        
-
         rospy.sleep(2)
 
+
+        # set up publishers and subscribers
         # publish to cmd_vel
         self.vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size = 10)
 
@@ -89,9 +111,8 @@ class Move_Robot(object):
         self.move_group_arm.go([0,0,0,0], wait=True)
         print("ready")
 
-        # set our global variables
-        
-        self.recognition_time = 3 #??? time we should wait for numbers to be recognized
+        # run functions
+        self.run()
 
 
     def recieved_scan(self, data):
@@ -99,6 +120,9 @@ class Move_Robot(object):
         return
 
     def recieved_image(self, data):
+        if self.stop_receiving:
+            return
+        self.stop_receiving = True
         #callback for getting image
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
         image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
@@ -107,12 +131,12 @@ class Move_Robot(object):
         # COLOR
         # define the upper and lower bounds for colors
         lower_red = np.array([0, 70, 50]) 
-        upper_red = np.array([70, 255, 255])
+        upper_red = np.array([40, 255, 255])
 
         lower_blue = np.array([110, 50, 50]) 
         upper_blue = np.array([130, 255, 255])
 
-        lower_greed = np.array([36, 25, 25]) 
+        lower_green = np.array([36, 25, 25]) 
         upper_green = np.array([70, 255,255])
 
         if self.color == 'red':
@@ -126,7 +150,7 @@ class Move_Robot(object):
             upper = upper_green
 
         mask = cv2.inRange(hsv, lower, upper)
-        print("mask = "+ str(mask))
+        #print("mask = "+ str(mask))
 
         # this erases all pixels that aren't yellow
         h, w, d = image.shape
@@ -143,24 +167,35 @@ class Move_Robot(object):
            # center of the yellow pixels in the image
            cx = int(M['m10']/M['m00'])
            cy = int(M['m01']/M['m00'])
+           print("cx: " + str(cx))
+           print("w: " + str(w))
+           print("d: "+ str(d))
+           x_dist_from_block = ( w // 2) - cx # if this is negative its on the other side
+           print("dist: " + str(x_dist_from_block))
 
+
+        cv2.imshow("window", mask)
+        cv2.waitKey(3)
         
-        # DIGITS
-        self.prediction_groups = self.pipeline.recognize([image])
-        try: 
-            print(self.prediction_groups[0][0][0])
-            num = str(self.prediction_groups[0][0][0])
-            if num == '1':
-                self.move_group_arm.go([0,0,0,0], wait=True) # these lines are causing errors bc error with move_group_arm
-                print("1")
-            elif num == '2':
-                self.move_group_arm.go([0,0,0,0], wait=True)
-                print("2")
-            elif num == '3':
-                self.move_group_arm.go([0,0,0,0], wait=True)
-                print("3")
-        except:
-            print("no number found")
+
+        # # DIGITS
+        # self.prediction_groups = self.pipeline.recognize([image])
+        # try: 
+        #     #print(list(map(lambda x : x[0], self.prediction_groups[0])))
+        #     num = str(self.prediction_groups[0][0][0])
+        #     if num == '1':
+        #         self.move_group_arm.go([0,0,0,0], wait=True) # these lines are causing errors bc error with move_group_arm
+        #         print("1")
+        #     elif num == '2':
+        #         self.move_group_arm.go([0,0,0,0], wait=True)
+        #         print("2")
+        #     elif num == '3':
+        #         self.move_group_arm.go([0,0,0,0], wait=True)
+        #         print("3")
+        # except:
+        #     print("no number found")
+
+        self.stop_receiving = False
 
 
     #def recieved_DB_to_Block(self, data):
@@ -183,14 +218,26 @@ class Move_Robot(object):
     def read_matrix(self):
         #given current state and qmatrix, what action do I take
         #returns (color, block_num)
-        return
+        final_state = False
+        curr_state = 0
+        while not final_state:
+            poss_actions = self.qmatrix[curr_state]
+            next_action = np.argmax(poss_actions)
+            self.action_list.append(next_action)
+            if int(self.qmatrix[curr_state][next_action]) == 100:
+                final_state = True
+            curr_state = np.where(self.action_matrix[curr_state] == next_action)[0][0]
+        print(self.action_list)
 
     def run(self):
-        #self.read_matrix()
+        self.read_matrix()
+        self.color = self.actions[self.action_list[0]]['dumbbell']
+        self.block = self.actions[self.action_list[0]]['block']
+        print(self.color)
+        print(self.block)
         #self.pick_dumbell_by_color()
         #self.put_dumbell_at_num()
         #repeat 2 more times
-        return
 
 
 if __name__ == "__main__":
