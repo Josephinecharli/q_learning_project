@@ -66,8 +66,8 @@ class QLearning(object):
         self.curr_action = 0
         self.alpha = 1
         self.gamma = 0.8
-        self.prevs = np.ones(5, dtype=float) # probably make this larger
-        print(self.prevs)
+        self.prevs = np.ones(10, dtype=float) # probably make this larger
+        #print(self.prevs)
         self.next_state = 0
         self.previous_matrix = copy.deepcopy(self.qmatrix)
         self.index = 0
@@ -97,6 +97,10 @@ class QLearning(object):
             temp_qm.append(QMatrixRow(temp_array))
         new_qm.q_matrix = temp_qm
         self.qmatrix_pub.publish(new_qm)
+        
+
+        #if(data.reward > 0):
+        #    print(self.curr_action)
 
         # calculate difference in qmatrix and update our prev array
         percent_delta = 0
@@ -106,25 +110,31 @@ class QLearning(object):
             for j, val in np.ndenumerate(row):
                 prev += int(self.previous_matrix[i][j])
                 curr += int(val)
-        if (curr != prev) and (curr != 0):
-            print("prev: " + str(prev))
-            print("curr: " + str(curr))
-            print((curr - prev)  / curr)
-            percent_delta += (curr - prev)  / curr
-            self.prevs[self.index % 5] = percent_delta
-            self.index += 1
+        #if (curr != prev) and (curr != 0):
+        if curr != 0:
+            #print("prev: " + str(prev))
+            #print("curr: " + str(curr))
+            #print(curr - prev)
+            #percent_delta += (curr - prev) / curr
+            percent_delta = curr - prev
+            if(data.reward > 0):
+                self.prevs[self.index % 10] = percent_delta
+                self.index += 1
+                #print(self.prevs)
+            #print(self.qmatrix)
 
         self.previous_matrix = copy.deepcopy(self.qmatrix)
 
         # update our current state
         self.curr_state = self.next_state
         avg_delta = np.mean(self.prevs)
-        if (data.iteration_num < 300 or avg_delta > .008): #and not rospy.is_shutdown): # this is a placeholder
+        if (data.iteration_num < 300 or avg_delta > 1): #and not rospy.is_shutdown): # this is a placeholder
             self.run()
+            #print("iteration: " + str(data.iteration_num)+" prevs: "+ str(self.prevs)+ " with a delta of "+str(avg_delta))
         else:
         	# save matrix once it has converged
-            print(data.iteration_num)
-            print(self.qmatrix)
+            #print(data.iteration_num)
+            #print(self.qmatrix)
             self.save_q_matrix()        
 
 
@@ -157,7 +167,9 @@ class QLearning(object):
     def save_q_matrix(self):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
+        #print("done. saving")   
         np.savetxt("qmatrix.csv", self.qmatrix, delimiter=",")
+        #print("save complete")
 
 if __name__ == "__main__":
     node = QLearning()
