@@ -65,12 +65,18 @@ class Move_Robot(object):
         ))
 
 
-        # initialize global variables
+        # initialize global  variables
         self.color = 'red' # set color we are currently looking for
         self.block = 1 # set block we want to move to
         self.stop_receiving = True # set variable to control image callback function
         self.action_list = [] # create a list of the actions we want to do
-
+        self.empty_arm_pose = [0,0.25,0.75,-1]
+        self.full_arm_pose = [0,-0.25, 0.75, -1]
+        self.open_gripper = [0.019,0.019]
+        self.closed_gripper = [0.003,0.003]
+        self.dumbbell_dist = np.inf
+        self.dumbbell_x_dist = np.inf
+        self.dumbbell_x_range = 0
 
         # set up camera stuff
         # set up ROS / OpenCV bridge
@@ -108,7 +114,8 @@ class Move_Robot(object):
         
         rospy.sleep(1)
         # Reset arm position
-        self.move_group_arm.go([0,0,0,0], wait=True)
+        self.move_group_arm.go(self.empty_arm_pose, wait=True)
+        self.move_group_gripper.go(self.open_gripper, wait=True)
         print("ready")
 
         # run functions
@@ -117,12 +124,20 @@ class Move_Robot(object):
 
     def recieved_scan(self, data):
         #callback for getting LIDAR
-        return
+        #return
+        #print("scan")
+        if abs(self.dumbbell_x_dist) < 5:
+            # TODO: change to min of [3,0,-3]
+            self.dumbbell_dist = data.ranges[0]
+        #if abs(self.num_x_dist) < 5;
+        #   self.num_dist = data.ranges[0]
 
     def recieved_image(self, data):
         if self.stop_receiving:
             return
-        self.stop_receiving = True
+        #else:
+            #print(self.stop_receiving)
+        #self.stop_receiving = True
         #callback for getting image
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
         image = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
@@ -154,7 +169,7 @@ class Move_Robot(object):
 
         # this erases all pixels that aren't yellow
         h, w, d = image.shape
-        
+        self.dumbbell_x_range = w
         #still need to figure out what part of the img we want to search
         search_top = int(h/2)
         search_bot = int(0)
@@ -162,18 +177,17 @@ class Move_Robot(object):
 
         # using moments() function, the center of the yellow pixels is determined
         M = cv2.moments(mask)
+        #print("mask made")
         # if there are any color pixels found
         if M['m00'] > 0:
            # center of the yellow pixels in the image
            cx = int(M['m10']/M['m00'])
            cy = int(M['m01']/M['m00'])
-           print("cx: " + str(cx))
-           print("w: " + str(w))
-           print("d: "+ str(d))
-           x_dist_from_block = ( w // 2) - cx # if this is negative its on the other side
-           print("dist: " + str(x_dist_from_block))
-
-
+           #print("cx: " + str(cx))
+           #print("w: " + str(w))
+           #print("d: "+ str(d))
+           self.dumbbell_x_dist = ( w // 2) - cx # if this is negative its on the other side
+           #print("dist: " + str(self.dumbbell_x_dist))
         cv2.imshow("window", mask)
         cv2.waitKey(3)
         
@@ -195,20 +209,44 @@ class Move_Robot(object):
         # except:
         #     print("no number found")
 
-        self.stop_receiving = False
-
+        self.stop_receiving = True
+        self.pick_dumbbell_by_color()
 
     #def recieved_DB_to_Block(self, data):
     #    #callback for subscriber
     #    continue
 
-    def pick_dumbell_by_color(self, color):
+    def pick_dumbbell_by_color(self):
         #use scan to locate dumbells
         #use image to determine color position
         #move to position and pick up dumbell colored color
-        return
+        #print("moving to dumbbell")
+        #print("x_dist: " + str(self.dumbbell_x_dist))
+        #print("dist: " + str(self.dumbbell_dist))
+        twist = Twist()
+        if abs(self.dumbbell_x_dist) < 7:
+            twist.angular.z = 0
+            if self.dumbbell_dist > 0.175:
+                #drive forward
+                twist.linear.x = 0.1
+                self.vel_pub.publish(twist)
+            else:
+                twist.linear.x = 0
+                self.vel_pub.publish(twist)
+                self.move_group_gripper.go(self.closed_gripper, wait=True)
+                print('gripper closed')
+                self.move_group_arm.go(self.full_arm_pose, wait=True)
+                #close arm
+                #raise arm
+                #call put_dumbbell_at_num()
+        else:
+            #rotate in the direction of blocks
+            #twist.angular.z = 0.3 * self.dumbbell_x_dist // (self.dumbbell_x_range // 2)
+            twist.angular.z = 0.1 * (self.dumbbell_x_dist // abs(self.dumbbell_x_dist))
+            self.vel_pub.publish(twist)
+        self.stop_receiving = False
 
-    def put_dumbell_at_num(self, num):
+    def put_dumbbell_at_num(self):
         #use scan to locate blocks
         #use image to determine block order
         #move dumbell to block labeled num
@@ -230,13 +268,18 @@ class Move_Robot(object):
         print(self.action_list)
 
     def run(self):
+        #self.stop_receiving = False
         self.read_matrix()
         self.color = self.actions[self.action_list[0]]['dumbbell']
         self.block = self.actions[self.action_list[0]]['block']
         print(self.color)
         print(self.block)
-        #self.pick_dumbell_by_color()
-        #self.put_dumbell_at_num()
+        
+        self.stop_receiving = False
+        
+        #self.pick_dumbbell_by_color()
+        #self.pick_dumbbell_by_color()
+        #self.put_dumbbell_at_num()
         #repeat 2 more times
 
 
