@@ -48,22 +48,22 @@ We use the *image_raw* and *keras_ocr* to look for numbers in the robots field o
 ## Robot Manipulation and Movement
 
 ### Moving Towards Dumbbells
-Occurs in *pick_dumbbell_by_color()*
+Occurs in *self.run()*, in the case where *current=0*
 
 We've already calculated the center of the highlighted pixels from the *image_raw* mask and use the x position of this to determine whether or not the robot is facing directly towards the dumbbell. If it is not, we turn until the center of the pixels is approximately at the center of the image. The variance here is covered by the fact the gripper opens wider than the handle of the dumbbell. Then once we are centered, we move directly forward towards the dumbbell, correcting our angle as we get closer. Once the robot's LIDAR reading is small enough that the gripper will be around the handle of the dumbbell, we know we are close enough.
 
 ### Picking Up Dumbbells
-Occurs in *pick_dumbbell_by_color()*
+Occurs in *self.run()*, where *self.current = 1*
 
 We use *moveit_commander*s to actuate the robot arm. The starting position is such that the gripper is in front of the robot and parallel to the ground at a height that goes between the bottom and top of the dumbbells. Thus once we are in position, we can simply close the gripper and lift the arm to raise the dumbbell.
 
 ### Moving to Blocks
-Orientation happens in *turn_to_blocks()*, movement happens in *put_dumbbell_at_num()*
+Orientation happens in *self.run()* where *self.current = 2*, movement happens in *self.run()* where *self.current = 3*
 
 Once *keras_ocr* has found a block with the desired number on it, we calculate the x position of the number in the image. If it is not centered, we rotate until it is. Then we drive forward until *scan* gives us a distance that is close enough to the block to be ready to place the dumbbell.
 
 ### Putting Down Dumbbell
-Occurs in *put_dumbbell_at_num()*
+Occurs in *self.run()* where *self.current = 3*
 
 Once we have moved do the correct block at a good distance, we reset the arm position to the starting one. Because the dumbbells are not completely immobilized by the gripper, they will be effected by gravity enough such that they will be placed on their bottoms. Once the arm is in its original position, it opens the gripper and backs away. The dumbbell should already be touching the ground at this point in a proper orientation, so the release should not let it move drastically.
 
