@@ -7,9 +7,7 @@ import random
 from q_learning_project.msg import QMatrix, QMatrixRow
 from q_learning_project.msg import QLearningReward
 from q_learning_project.msg import RobotMoveDBToBlock
-
 from std_msgs.msg import Header, String
-
 import pandas as pd
 import copy
 
@@ -53,41 +51,44 @@ class QLearning(object):
         self.states = np.loadtxt(path_prefix + "states.txt")
         self.states = list(map(lambda x: list(map(lambda y: int(y), x)), self.states))
         
-        # initialize qmatrix
-        self.qmatrix = np.zeros((64,9), dtype=float)#[[0]*9]*64
+        # initialize qmatrix as numpy array
+        self.qmatrix = np.zeros((64,9), dtype=float)
 
-        # create our publishers for our q_matrix and robot actions
+        # create our publishers and subscribers for our q_matrix and robot actions
         self.qmatrix_pub = rospy.Publisher("/q_learning/q_matrix", QMatrix, queue_size=10)
         self.db_pub = rospy.Publisher("/q_learning/robot_action", RobotMoveDBToBlock, queue_size = 10)
         rospy.Subscriber("/q_learning/reward", QLearningReward, self.recieved_reward)
         
         # initialize global variables
-        self.curr_state = 0
-        self.curr_action = 0
+        self.curr_state = 0 # store current state
+        self.curr_action = 0 # store current action
         self.alpha = 1
         self.gamma = 0.8
-        self.prevs = np.ones(10, dtype=float) # probably make this larger
-        #print(self.prevs)
-        self.next_state = 0
-        self.previous_matrix = copy.deepcopy(self.qmatrix)
-        self.index = 0
+        self.prevs = np.ones(10, dtype=float) # store our previous delta values
+        self.next_state = 0 # store our next calculated state
+        self.previous_matrix = copy.deepcopy(self.qmatrix) # store our previous matrix
+        self.index = 0 # set a counter for our delta values
 
+        # wait for initialization
         r = rospy.Rate(1)
         r.sleep()
 
+        # call our run function
         self.run()
 
-    # update our reward and iterations variables
+    # When we recieve a reward, update our qmatrix
+    # publish our qmatrix
+    # calculate difference between updated matrix and previous matrices
+    # if difference is below threshold, save matrix and exit
+    # if not, continue iterating
     def recieved_reward(self, data):
         
         # while the matrix hasn't converged (or we haven't completed a sufficient number of iterations)
-        # store old qmatrix and update new one
-        #prev_val = self.qmatrix[self.curr_state][self.curr_action]
-        #print(self.curr_action)
+        # update new qmatrix
         self.qmatrix[self.curr_state][self.curr_action] = self.qmatrix[self.curr_state][self.curr_action] + self.alpha * (data.reward + self.gamma * max(self.qmatrix[self.next_state]) - self.qmatrix[self.curr_state][self.curr_action])
-        #self.qmatrix[self.curr_state][self.curr_action] = data.reward
-        #print(self.qmatrix)
+        
         # publish qmatrix
+        # create a new qmatrix ms type and translate our qmatrix into it
         new_qm = QMatrix()
         temp_qm = []
         for row in self.qmatrix:
@@ -97,65 +98,62 @@ class QLearning(object):
             temp_qm.append(QMatrixRow(temp_array))
         new_qm.q_matrix = temp_qm
         self.qmatrix_pub.publish(new_qm)
-        
 
-        #if(data.reward > 0):
-        #    print(self.curr_action)
-
-        # calculate difference in qmatrix and update our prev array
+        # calculate difference in qmatrix
+        # set variables to store total diff between matrices
         percent_delta = 0
         prev = 0
         curr = 0
+        # iterate through prev and current qmatrices and calculate difference
         for i, row in np.ndenumerate(self.qmatrix):
             for j, val in np.ndenumerate(row):
                 prev += int(self.previous_matrix[i][j])
                 curr += int(val)
-        #if (curr != prev) and (curr != 0):
+        # if there is a meaningfull diff, modify our prev array
         if curr != 0:
-            #print("prev: " + str(prev))
-            #print("curr: " + str(curr))
-            #print(curr - prev)
-            #percent_delta += (curr - prev) / curr
             percent_delta = curr - prev
             if(data.reward > 0):
                 self.prevs[self.index % 10] = percent_delta
                 self.index += 1
-                #print(self.prevs)
-            #print(self.qmatrix)
-
+            
+        # store this qmatrix in our previous_matrix variable
         self.previous_matrix = copy.deepcopy(self.qmatrix)
 
         # update our current state
         self.curr_state = self.next_state
+
+        # calculate avg delta of the last 10 meaningful changes, 
+        # decide whether matrix has converged or not
         avg_delta = np.mean(self.prevs)
+        # if matrix hasn't converged, compute another iteration
         if (data.iteration_num < 300 or avg_delta > 1): #and not rospy.is_shutdown): # this is a placeholder
             self.run()
-            #print("iteration: " + str(data.iteration_num)+" prevs: "+ str(self.prevs)+ " with a delta of "+str(avg_delta))
+        # save matrix once it has converged
         else:
-        	# save matrix once it has converged
-            #print(data.iteration_num)
-            #print(self.qmatrix)
             self.save_q_matrix()        
 
 
     # execute our q-learning algorithm until our matrix has converged
-    # need to re-evaluate how we are handling rewards and convergence
+    # calculate possible actions at our state,
+    # if there are none, reset states and rerun fn
+    # otherwise, chose a current action, 
+    # calculate the next state
+    # publish our new action
     def run(self):
         # find a list of the possible actions at our state 
         poss_actions  = list(filter(lambda x : x >= 0, self.action_matrix[self.curr_state]))
 
         # check if there are any possible actions
         if len(poss_actions) == 0:
+            # if there are not, reset states
             self.curr_state = 0
             self.next_state = 0
             self.curr_action = 0
             self.run()
         else:
-            # calculate next state 
+            # otherwise, calculate next state and action
             self.curr_action = int(poss_actions[random.randrange(len(poss_actions))])
-            #print(np.where(self.action_matrix[self.curr_state] == self.next_action))
             self.next_state = np.where(self.action_matrix[self.curr_state] == self.curr_action)[0][0]  # TODO: does this actually work?
-            # store previous value from our qmatrix and set new one
 
             # publish msg
             db_color = self.actions[self.curr_action]['dumbbell']
@@ -163,13 +161,11 @@ class QLearning(object):
             movement = RobotMoveDBToBlock(robot_db=db_color, block_id=block_num)
             self.db_pub.publish(movement)
         
-
+    # save qmatrix
     def save_q_matrix(self):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
-        #print("done. saving")   
         np.savetxt("qmatrix.csv", self.qmatrix, delimiter=",")
-        #print("save complete")
 
 if __name__ == "__main__":
     node = QLearning()
