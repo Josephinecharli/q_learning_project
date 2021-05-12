@@ -5,6 +5,41 @@ Josephine Passananti
 
 Evan Casey
 
+## Objectives
+Design a set of programs that create a matrix of actions to take based on a reward and follow these actions and execute them to actually recieve the maximum reward in limited time. To do this, we need to develop a program to create and train a Q-matrix, and a program that reads in a Q-matrix and executes robot actions based on the input.
+## High-level description
+We implement reinforcement learning by applying the Q-Learning algorithm. We repeatedly tested random possible actions until the robot received a reward. We used an alpha of 1 and a gamma of 0.8 for the function. Alpha of 1 means that each time we repeat an action, we carry down a percentage of the best action to take in the next step without considering the current value of (this is because the formula subtracts alpha*current value). Thus we are able to only carry over values in actions that take us to a successful reward.
+## Q-Learning Algorithm
+### Selecting Actions
+
+### Updating Q-Matrix
+
+### Determining Convergence
+We determine convergence based on the total change in the matrix between two consecutive successful runs. We store the values for 10 successful attemps, and once they are all 0, we can assume the matrix converges. We also check if iterations is less than 300 as a safety net in the small chance we do not hit all possible successful sequences before we get 10 successful attempts that are not unique. There are 3 possible successful first actions, 
+### Executing the Correct Path
+The robot calls *read_marix()* which takes the already converged Q-matrix and develops a series of actions to take. It selects an acction by considering the rewards of each possible action in state 0, the starting state. Then it picks the action with the highest reward, preferring the first action found if there are ties. Then it uses this action to determine the next state of the world, and repeats the logic to select a second action. This is appended to a list after the first action. Then it does the same for a third action. It would repeat this process until it finds an action with the maximum possible reward, 100, but due to the nature of the Q-matrix, this will only ever be 3 actions.
+
+Then for each action in the list, we use *action_list* to determine the color of the dumbbell to be moved and the number of the block it should be placed at, and call the respective helper functions to actually execute the movements.
+## Robot Perception
+### Identifying Dumbbells
+
+###Identifying Blocks
+## Robot Manipulation and Movement
+### Moving Towards Dumbbells
+
+### Picking Up Dumbbells
+
+### Moving to Blocks
+
+### Putting Down Dumbbells
+
+# Challenges
+
+# Future Work
+
+# Takewayas
+
+# Implementation Plan
 ## Q-learning algorithm
 ### Executing the Q-learning algorithm
 We will create an algorithm based off the one we used in class and code it. We will test on a small number of points, for example the set from class, and verify that it works correctly
