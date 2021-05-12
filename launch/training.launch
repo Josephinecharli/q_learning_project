@@ -3,3 +3,11 @@
 Rus virtual_reset_world.py
 Run any scripts you've written to train and save the matrix e.g. q_learning.py 
 -->
+<launch>
+	<!-- launch reward program -->
+	<node name="virtual_reset_world_q_learning" pkg="q_learning_project" type="virtual_reset_world.py" respawn="false"/>
+
+	<!-- launch learning code -->
+	<node name="q_learning" pkg="q_learning_project" type="q_learning.py" respawn="false" output="screen"/>
+</launch>
+
