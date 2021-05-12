@@ -61,7 +61,7 @@ class Move_Robot(object):
         self.action_list = [] # create a list of the actions we want to do
         # set poses and grips for the robot
         self.empty_arm_pose = [0,0.25,0.75,-1] 
-        self.full_arm_pose = [0,-0.60, 0.50, -1]
+        self.full_arm_pose = [0,-0.60, 0.50, -0.9]
         self.open_gripper = [0.019,0.019]
         self.closed_gripper = [0.003,0.003]
         self.dumbbell_dist = np.inf # distance from scan to dumbell
@@ -137,7 +137,7 @@ class Move_Robot(object):
         # if the target dumell is close enough, update the scan value
         if abs(self.dumbbell_x_dist) < 7:
             # update dumbell distance to be the min value between the 3 ranges
-            self.dumbbell_dist = min(data.ranges[0], data.ranges[1], data.ranges[-1])
+            self.dumbbell_dist = min(data.ranges[0], data.ranges[3], data.ranges[-3])
 
 
     # callback function for camera
@@ -227,13 +227,20 @@ class Move_Robot(object):
 
                         # calculate the x dist to block and update global variable
                         indices = [i for i, x in enumerate(poss_nums) if x == str(self.block)]
+                        index = poss_nums.index(str(self.block))
 
                         # if two target values are found, back up robot slightly
+                        curr_max = self.prediction_groups[0][index][1][0][1]
                         if len(indices) > 1:
                             self.move_back = True
+                            for i in indices:
+                                if self.prediction_groups[0][i][1][0][1] < curr_max:
+                                    index = i
+                                    curr_max = self.prediction_groups[0][index][1][0][0]
+                        print(index)
                         
                         # calculate x dist from target block and update global variable
-                        cx = w // 2 - self.prediction_groups[0][poss_nums.index(str(self.block))][1][0][0]
+                        cx = w // 2 - self.prediction_groups[0][index][1][0][0]
                         self.block_x_dist = cx
                         print(cx)
 
@@ -343,7 +350,7 @@ class Move_Robot(object):
                     twist.angular.z = 0
 
                     # if the robot is too far from the robot, keep moving forwards
-                    if self.dumbbell_dist > 0.2:
+                    if self.dumbbell_dist > 0.19:
                         #drive forward
                         twist.linear.x = 0.1
                         self.vel_pub.publish(twist)
@@ -387,7 +394,7 @@ class Move_Robot(object):
                 # initialize twist variable
                 # set linear speed to 0 and rotation to .1
                 twist.linear.x = 0
-                twist.angular.z = 0.2
+                twist.angular.z = 0.1
                 self.vel_pub.publish(twist)
                 print("turning")
 
@@ -411,7 +418,7 @@ class Move_Robot(object):
 
                 # move back slightly, if necessary
                 if self.move_back:
-                    twist.linear.x = -0.2
+                    twist.linear.x = 0.2
                     self.vel_pub.publish(twist)
                     rospy.sleep(0.3)
                     twist.linear.x = 0
@@ -422,10 +429,10 @@ class Move_Robot(object):
                 if (self.rotate):   
                     # rotate for 1 second
                     twist.linear.x = 0
-                    twist.angular.z = 0.1
+                    twist.angular.z = 0.2
                     self.vel_pub.publish(twist)
                     print("rotating")
-                    rospy.sleep(2)
+                    rospy.sleep(3)
 
                     # stop turning
                     print("stop rotating")
@@ -443,7 +450,7 @@ class Move_Robot(object):
 
                 # if the robot is pointed towards the block
                 # begin moving towards it
-                if abs(self.block_x_dist) < 10:
+                if abs(self.block_x_dist) < 12:
                     # stop rotating robot
                     twist.angular.z = 0
 
@@ -471,7 +478,7 @@ class Move_Robot(object):
                 # otherwise keep rotating until pointed towards the block
                 else:
                     # rotate in the direction of blocks
-                    twist.angular.z = 0.05 * (self.block_x_dist // abs(self.block_x_dist))
+                    twist.angular.z = 0.08 * (self.block_x_dist // abs(self.block_x_dist))
                     self.vel_pub.publish(twist)
                     sleep_time = abs(self.block_x_dist)/100
                     rospy.sleep(sleep_time)
