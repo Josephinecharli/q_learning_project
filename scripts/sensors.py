@@ -230,7 +230,7 @@ class Move_Robot(object):
 
                         # if two target values are found, back up robot slightly
                         if len(indices) > 1:
-                            self.move_back = False
+                            self.move_back = True
                         
                         # calculate x dist from target block and update global variable
                         cx = w // 2 - self.prediction_groups[0][poss_nums.index(str(self.block))][1][0][0]
@@ -387,7 +387,7 @@ class Move_Robot(object):
                 # initialize twist variable
                 # set linear speed to 0 and rotation to .1
                 twist.linear.x = 0
-                twist.angular.z = 0.3
+                twist.angular.z = 0.2
                 self.vel_pub.publish(twist)
                 print("turning")
 
@@ -407,7 +407,7 @@ class Move_Robot(object):
             # rotate robot until block is recognized
             elif self.current == 2:
                 # start looking for a block number
-                print("moving dumbbell to block")   
+                print("pointing dumbbell to block")   
 
                 # move back slightly, if necessary
                 if self.move_back:
@@ -416,6 +416,7 @@ class Move_Robot(object):
                     rospy.sleep(0.3)
                     twist.linear.x = 0
                     self.vel_pub.publish(twist)
+                    self.move_back = False
 
                 # if blocks have been identified, but not our target block, rotate
                 if (self.rotate):   
@@ -433,7 +434,6 @@ class Move_Robot(object):
                     self.rotate = False
 
                 # call img recognition and wait until image has been recognized before continuing
-                print("calling img function again")
                 self.wait_for_camera()
 
             # rotate the robot until directly pointed at the target block
@@ -452,7 +452,6 @@ class Move_Robot(object):
                         #drive forward
                         twist.linear.x = 0.2
                         self.vel_pub.publish(twist)
-                        print(self.block_dist)
 
                     # if close enough, stop moving and deposit robot
                     else:
