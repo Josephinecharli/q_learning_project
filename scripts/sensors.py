@@ -61,7 +61,7 @@ class Move_Robot(object):
         self.action_list = [7] # create a list of the actions we want to do
         # set poses and grips for the robot
         self.empty_arm_pose = [0,0.25,0.75,-1] 
-        self.full_arm_pose = [0,-0.60, 0.50, -1]
+        self.full_arm_pose = [0,-0.60, 0.50, -0.75]
         self.open_gripper = [0.019,0.019]
         self.closed_gripper = [0.003,0.003]
         self.dumbbell_dist = np.inf # distance from scan to dumbell
@@ -130,10 +130,10 @@ class Move_Robot(object):
     # callback function for camera
     def recieved_image(self, data):
         # check to make sure the previous call has been fully processed and we want to call this fn again
-        if self.stop_receiving:
-            return
+        #if self.stop_receiving:
+        #    return
         # stop receiving until we set this to false again
-        self.stop_receiving = True
+        #self.stop_receiving = True
         self.prediction_groups = []
         # callback for getting image
         # converts the incoming ROS message to OpenCV format and HSV (hue, saturation, value)
@@ -142,6 +142,8 @@ class Move_Robot(object):
         # set the dimensions of the image
         h, w, d = image.shape
         print("ok image found")
+        cv2.imshow("window", image)
+        cv2.waitKey(1)
 
         # if we want to look at the color of image
         if self.picking:
@@ -203,8 +205,8 @@ class Move_Robot(object):
             # read image in from ml algo
             self.prediction_groups = self.pipeline.recognize([image])
             print(self.prediction_groups)
-            cv2.imshow("window", image)
-            cv2.waitKey(3)
+            #cv2.imshow("window", image)
+            #cv2.waitKey(3)
             # attempt to access data
             # if there is no image recognition data, call move fn again
             try: 
@@ -246,21 +248,24 @@ class Move_Robot(object):
             # if no numbers are recognized, try again
             except:
                 print("error")
-                self.put_dumbbell_at_num()
+                #self.put_dumbbell_at_num()
             
             # if we have identified location of target block, 
             # start move function to it
             if self.move_now:
                 # reset move function to false again
                 self.move_now = False
-
+                print("move to block")
                 # call move function
                 self.move_to_block()
+        else:
+            self.turn_to_blocks()
 
 
     # once the target dumbell has been identified: 
     # move to it and pick it up
     def pick_dumbbell_by_color(self):
+        print("pick by color")
         # initialize twist variable
         twist = Twist()
 
@@ -270,16 +275,17 @@ class Move_Robot(object):
             twist.angular.z = 0
 
             # if the robot is too far from the robot, keep moving forwards
-            if self.dumbbell_dist > 0.2:
+            if self.dumbbell_dist > 0.18:
                 #drive forward
                 twist.linear.x = 0.1
                 self.vel_pub.publish(twist)
 
                 # run image callback function again
-                self.stop_receiving = False
+                #self.stop_receiving = False
 
             # otherwise, begin trying to pick the robot up
             else:
+                #print("close to dumbbell")
                 #stop moving forward
                 twist.linear.x = 0
                 self.vel_pub.publish(twist)
@@ -291,17 +297,18 @@ class Move_Robot(object):
 
                 # move backwards for 2 seconds to be closer to the blocks
                 # necessary to recognize first block
-                rospy.sleep(1)
+                #rospy.sleep(1)
                 twist.linear.x = -0.2
                 self.vel_pub.publish(twist)
-                rospy.sleep(2)
+                #rospy.sleep(2)
                 twist.linear.x = 0
                 self.vel_pub.publish(twist)
 
                 # stop looking for color of robot
                 self.picking = False
                 # stop using image callback fn for now
-                self.stop_receiving = True
+                #print("stopping image from pick_by_color")
+                #self.stop_receiving = True
 
                 # turn robot to first block
                 self.turn_to_blocks()
@@ -312,12 +319,13 @@ class Move_Robot(object):
             self.vel_pub.publish(twist)
 
             # run image callback function again
-            self.stop_receiving = False
+            #self.stop_receiving = False
 
 
     # once the dumbell has been picked up, 
     # turn until first block is found
     def turn_to_blocks(self):
+        #print("turning to block")
         # initialize twist variable
         twist = Twist()
 
@@ -325,24 +333,23 @@ class Move_Robot(object):
         twist.linear.x = 0
         twist.angular.z = 0.1
         self.vel_pub.publish(twist)
-        print("turning")
+        #print("turning")
         #print(self.block_dist)
 
         # wait until we see a block and then stop
         # if we dont see a block, call the function again
         if (self.block_dist < 1.5) or (str(self.block_dist) == 'inf'):
             # sleep for 1 second to not break code
-            rospy.sleep(1)
-            self.turn_to_blocks()
-
+            #rospy.sleep(1)
+            #self.turn_to_blocks()
+            print("test")
         # if block has been found stop turning
         else:
-            print("stop")
-            #stop turning
+            #print("stop")
+        #stop turning
             twist.angular.z = 0
             self.vel_pub.publish(twist)
-
-            # tell robot to find block
+        # tell robot to find block
             self.put_dumbbell_at_num()
 
 
@@ -359,7 +366,7 @@ class Move_Robot(object):
             twist.angular.z = 0.1
             self.vel_pub.publish(twist)
             print("rotating")
-            rospy.sleep(2)
+            rospy.sleep(1)
 
             # stop turning
             print("stop rotating")
