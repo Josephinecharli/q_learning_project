@@ -1,5 +1,7 @@
 # q_learning_project
 
+![gif_demonstration](./final.gif)
+
 # Team Members:
 Josephine Passananti
 
