@@ -64,7 +64,7 @@ class QLearning(object):
         self.curr_action = 0 # store current action
         self.alpha = 1
         self.gamma = 0.8
-        self.prevs = np.ones(10, dtype=float) # store our previous delta values
+        self.prevs = np.ones(25, dtype=float) # store our previous delta values
         self.next_state = 0 # store our next calculated state
         self.previous_matrix = copy.deepcopy(self.qmatrix) # store our previous matrix
         self.index = 0 # set a counter for our delta values
@@ -113,11 +113,11 @@ class QLearning(object):
         if curr != 0:
             percent_delta = curr - prev
             if(data.reward > 0):
-                self.prevs[self.index % 10] = percent_delta
+                self.prevs[self.index % 25] = percent_delta
                 self.index += 1
-            
-        # store this qmatrix in our previous_matrix variable
-        self.previous_matrix = copy.deepcopy(self.qmatrix)
+                 
+                # store this qmatrix in our previous_matrix variable
+                self.previous_matrix = copy.deepcopy(self.qmatrix)
 
         # update our current state
         self.curr_state = self.next_state
@@ -166,6 +166,7 @@ class QLearning(object):
         # TODO: You'll want to save your q_matrix to a file once it is done to
         # avoid retraining
         np.savetxt("qmatrix.csv", self.qmatrix, delimiter=",")
+        print("qmatrix saved")
 
 if __name__ == "__main__":
     node = QLearning()
